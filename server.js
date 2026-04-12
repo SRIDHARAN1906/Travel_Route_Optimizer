@@ -1,44 +1,42 @@
 const express = require('express');
 const fetch = require('node-fetch');
 const cors = require('cors');
+const path = require('path');
 
 const app = express();
 app.use(cors());
 
-// API endpoint
+// ✅ THIS LINE FIXES YOUR PROBLEM
+app.use(express.static(__dirname));
+
+// API
 app.get('/geocode', async (req, res) => {
   const city = req.query.city;
 
-  if (!city) {
-    return res.status(400).json({ error: 'City required' });
-  }
+  const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(city)}&limit=1`;
 
-  try {
-    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(city)}&limit=1`;
-
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'MyApp/1.0 (student project)',
-        'Accept-Language': 'en'
-      }
-    });
-
-    const data = await response.json();
-
-    if (data.length === 0) {
-      return res.json(null);
+  const response = await fetch(url, {
+    headers: {
+      'User-Agent': 'MyApp/1.0',
+      'Accept-Language': 'en'
     }
+  });
 
-    res.json({
-      lat: parseFloat(data[0].lat),
-      lng: parseFloat(data[0].lon)
-    });
+  const data = await response.json();
 
-  } catch (err) {
-    res.status(500).json({ error: 'Server error' });
-  }
+  if (data.length === 0) return res.json(null);
+
+  res.json({
+    lat: parseFloat(data[0].lat),
+    lng: parseFloat(data[0].lon)
+  });
 });
 
-app.listen(3000, () => {
-  console.log('Server running on http://localhost:3000');
+// serve main page
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+app.listen(3000, '0.0.0.0', () => {
+  console.log('Server running...');
 });

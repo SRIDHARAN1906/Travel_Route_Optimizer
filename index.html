@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#ff6b6b">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Travel Route Optimizer — TSP Solver</title>
+<link href="https://fonts.googleapis.com/css2?family=Clash+Display:wght@400;600;700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#05070f;--s1:#0d1117;--s2:#161b27;--s3:#1e2535;
+  --c1:#ff6b6b;--c2:#ffd93d;--c3:#6bcb77;--c4:#4d96ff;--c5:#c77dff;--c6:#ff9a3c;
+  --grad1:linear-gradient(135deg,#ff6b6b,#ffd93d);
+  --grad2:linear-gradient(135deg,#4d96ff,#c77dff);
+  --grad3:linear-gradient(135deg,#6bcb77,#4d96ff);
+  --text:#f0f6ff;--muted:#7a8aaa;--border:rgba(255,255,255,0.07);
+}
+html,body{height:100%;overflow:hidden;}
+body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);}
+
+header{
+  position:fixed;top:0;left:0;right:0;z-index:1000;
+  background:rgba(5,7,15,0.92);backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--border);
+  padding:0 1.5rem;height:60px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.logo{display:flex;align-items:center;gap:10px;}
+.logo-icon{width:36px;height:36px;border-radius:10px;background:var(--grad1);display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 0 18px rgba(255,107,107,0.4);}
+.logo-text{font-family:'Clash Display',sans-serif;font-size:1.15rem;font-weight:700;}
+.logo-text span{background:var(--grad1);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.header-tag{padding:5px 12px;border-radius:20px;font-size:0.72rem;font-weight:600;border:1px solid var(--border);background:var(--s2);color:var(--muted);}
+
+/* MAIN LAYOUT */
+.app{display:flex;height:100vh;padding-top:60px;}
+
+/* SIDEBAR */
+.sidebar{
+  width:380px;flex-shrink:0;
+  background:var(--s1);border-right:1px solid var(--border);
+  overflow-y:auto;overflow-x:hidden;
+  display:flex;flex-direction:column;
+}
+.sidebar::-webkit-scrollbar{width:3px;}
+.sidebar::-webkit-scrollbar-thumb{background:var(--s3);border-radius:4px;}
+
+.hero{
+  padding:1.25rem 1.25rem 1rem;
+  background:linear-gradient(180deg,rgba(77,150,255,0.07) 0%,transparent 100%);
+  border-bottom:1px solid var(--border);flex-shrink:0;
+}
+.hero h2{font-family:'Clash Display',sans-serif;font-size:1.3rem;font-weight:700;margin-bottom:4px;}
+.hero p{font-size:0.8rem;color:var(--muted);line-height:1.5;}
+
+.sec{padding:1rem 1.25rem;border-bottom:1px solid var(--border);}
+.lbl{font-size:0.62rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+.lbl::after{content:'';flex:1;height:1px;background:var(--border);}
+
+/* INPUT */
+.irow{display:flex;gap:7px;}
+.cinput{flex:1;background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:10px 13px;color:var(--text);font-family:'Outfit',sans-serif;font-size:0.88rem;outline:none;transition:all 0.2s;}
+.cinput:focus{border-color:var(--c4);box-shadow:0 0 0 3px rgba(77,150,255,0.12);}
+.cinput::placeholder{color:var(--muted);}
+.badd{background:var(--grad3);color:#fff;border:none;border-radius:10px;width:42px;height:42px;font-size:1.3rem;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 0 14px rgba(107,203,119,0.3);transition:all 0.2s;flex-shrink:0;}
+.badd:hover{transform:scale(1.08);}
+.badd:active{transform:scale(0.95);}
+
+.prow{display:flex;gap:6px;margin-top:8px;}
+.pbtn{flex:1;background:var(--s2);border:1px solid var(--border);color:var(--text);padding:7px 6px;border-radius:9px;font-size:0.74rem;font-weight:500;cursor:pointer;font-family:'Outfit',sans-serif;transition:all 0.2s;text-align:center;}
+.pbtn:hover{border-color:var(--c2);color:var(--c2);box-shadow:0 0 10px rgba(255,217,61,0.2);}
+
+.clist{display:flex;flex-direction:column;gap:5px;margin-top:8px;}
+.citem{display:flex;align-items:center;gap:9px;background:var(--s2);border:1px solid var(--border);border-radius:9px;padding:8px 11px;animation:si 0.25s ease;transition:border-color 0.2s;}
+.citem:hover{border-color:rgba(255,255,255,0.15);}
+@keyframes si{from{opacity:0;transform:translateX(-10px);}to{opacity:1;transform:translateX(0);}}
+.cdot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.cname{flex:1;font-size:0.85rem;font-weight:500;}
+.stag{font-size:0.58rem;font-weight:700;padding:2px 7px;border-radius:7px;background:rgba(255,217,61,0.15);color:var(--c2);}
+.crem{background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.85rem;padding:2px 6px;border-radius:5px;transition:all 0.2s;}
+.crem:hover{color:var(--c1);background:rgba(255,107,107,0.1);}
+
+/* ALGO */
+.agrid{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
+.acard{background:var(--s2);border:1.5px solid var(--border);border-radius:11px;padding:11px;cursor:pointer;transition:all 0.2s;position:relative;overflow:hidden;}
+.acard::before{content:'';position:absolute;inset:0;opacity:0;transition:opacity 0.2s;}
+.acard:nth-child(1)::before{background:linear-gradient(135deg,rgba(255,107,107,0.12),transparent);}
+.acard:nth-child(2)::before{background:linear-gradient(135deg,rgba(77,150,255,0.12),transparent);}
+.acard:nth-child(3)::before{background:linear-gradient(135deg,rgba(199,125,255,0.12),transparent);}
+.acard:nth-child(4)::before{background:linear-gradient(135deg,rgba(107,203,119,0.12),transparent);}
+.acard:hover::before,.acard.active::before{opacity:1;}
+.acard:nth-child(1).active{border-color:var(--c1);box-shadow:0 0 16px rgba(255,107,107,0.25);}
+.acard:nth-child(2).active{border-color:var(--c4);box-shadow:0 0 16px rgba(77,150,255,0.25);}
+.acard:nth-child(3).active{border-color:var(--c5);box-shadow:0 0 16px rgba(199,125,255,0.25);}
+.acard:nth-child(4).active{border-color:var(--c3);box-shadow:0 0 16px rgba(107,203,119,0.25);}
+.aicon{font-size:1.2rem;margin-bottom:5px;}
+.aname{font-size:0.8rem;font-weight:600;margin-bottom:1px;}
+.asub{font-size:0.65rem;color:var(--muted);}
+.abadge{display:inline-block;font-size:0.58rem;font-weight:700;padding:2px 7px;border-radius:7px;margin-top:5px;letter-spacing:0.5px;text-transform:uppercase;}
+.bf{background:rgba(107,203,119,0.15);color:var(--c3);}
+.be{background:rgba(77,150,255,0.15);color:var(--c4);}
+.ba{background:rgba(199,125,255,0.15);color:var(--c5);}
+.bo{background:rgba(255,107,107,0.15);color:var(--c1);}
+
+.bsolve{
+  width:100%;padding:14px;border:none;border-radius:12px;
+  background:var(--grad1);color:#fff;
+  font-family:'Clash Display',sans-serif;font-size:1rem;font-weight:700;
+  cursor:pointer;box-shadow:0 4px 28px rgba(255,107,107,0.4);
+  transition:all 0.25s;
+}
+.bsolve:hover{transform:translateY(-2px);box-shadow:0 8px 36px rgba(255,107,107,0.5);}
+.bsolve:active{transform:translateY(0);}
+.bsolve:disabled{opacity:0.5;cursor:not-allowed;transform:none;}
+
+/* RESULTS */
+.sgrid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:12px;}
+.scard{background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:11px;}
+.slbl{font-size:0.62rem;color:var(--muted);font-weight:600;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:3px;}
+.sval{font-family:'Clash Display',sans-serif;font-size:1.3rem;font-weight:700;}
+
+.rpath{display:flex;flex-direction:column;}
+.rstep{display:flex;align-items:flex-start;gap:10px;animation:si 0.3s ease both;}
+.rnode{display:flex;flex-direction:column;align-items:center;flex-shrink:0;}
+.rcirc{width:27px;height:27px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.68rem;font-weight:700;border:2px solid;}
+.rline{width:2px;height:16px;margin:2px 0;}
+.rinfo{padding-top:3px;padding-bottom:7px;}
+.rcity{font-size:0.84rem;font-weight:600;}
+.rkm{font-size:0.7rem;color:var(--muted);margin-top:1px;}
+
+.cmpitem{margin-bottom:10px;}
+.cmptop{display:flex;justify-content:space-between;margin-bottom:4px;font-size:0.75rem;}
+.cmptrack{height:7px;background:var(--s3);border-radius:10px;overflow:hidden;}
+.cmpfill{height:100%;border-radius:10px;transition:width 1s cubic-bezier(0.23,1,0.32,1);}
+
+/* MAP */
+.map-wrap{flex:1;position:relative;}
+#map{width:100%;height:100%;}
+
+/* Leaflet dark override */
+.leaflet-tile{filter:brightness(0.6) saturate(0.5) hue-rotate(195deg);}
+.leaflet-container{background:#05070f;}
+
+/* MAP OVERLAY TOOLBAR */
+.map-bar{
+  position:absolute;top:12px;left:50%;transform:translateX(-50%);
+  z-index:500;
+  background:rgba(5,7,15,0.88);backdrop-filter:blur(16px);
+  border:1px solid var(--border);border-radius:30px;
+  padding:8px 20px;display:flex;align-items:center;gap:14px;
+  white-space:nowrap;
+}
+.mbar-title{font-family:'Clash Display',sans-serif;font-size:0.88rem;font-weight:700;}
+.mbar-info{font-size:0.75rem;color:var(--muted);}
+.mbar-badge{font-size:0.65rem;font-weight:700;padding:3px 10px;border-radius:20px;background:rgba(107,203,119,0.15);color:var(--c3);border:1px solid rgba(107,203,119,0.3);}
+
+.toast{position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;background:linear-gradient(135deg,var(--c1),var(--c6));color:#fff;padding:11px 18px;border-radius:11px;font-size:0.82rem;font-weight:500;box-shadow:0 8px 28px rgba(255,107,107,0.4);transform:translateY(70px);opacity:0;transition:all 0.3s;}
+.toast.show{transform:translateY(0);opacity:1;}
+.spin{display:inline-block;width:15px;height:15px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:rot 0.6s linear infinite;vertical-align:middle;margin-right:7px;}
+@keyframes rot{to{transform:rotate(360deg);}}
+::-webkit-scrollbar{width:3px;}
+::-webkit-scrollbar-thumb{background:var(--s3);border-radius:4px;}
+
+@media(max-width:768px){
+  .app{flex-direction:column;}
+  .sidebar{width:100%;max-height:55vh;overflow-y:auto;}
+  .map-wrap{flex:1;min-height:300px;}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🗺️</div>
+    <div class="logo-text">Route<span>Optimizer</span></div>
+  </div>
+  <div class="header-tag">TSP Solver · 21CSC201T AI Project</div>
+</header>
+
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+
+    <div class="hero">
+      <h2>🧭 Plan Your Route</h2>
+      <p>Add real cities, pick an algorithm, and see the optimized route drawn on the actual world map.</p>
+    </div>
+
+    <!-- CITY INPUT -->
+    <div class="sec">
+      <div class="lbl">Add Cities</div>
+      <div class="irow">
+        <input class="cinput" id="cityInput" type="text" placeholder="Enter city name..." autocomplete="off"/>
+        <button class="badd" onclick="addCity()">+</button>
+      </div>
+      <div class="prow">
+        <button class="pbtn" onclick="loadPreset('india')">🇮🇳 India</button>
+        <button class="pbtn" onclick="loadPreset('europe')">🇪🇺 Europe</button>
+        <button class="pbtn" onclick="loadPreset('usa')">🇺🇸 USA</button>
+      </div>
+      <div class="clist" id="cityList"></div>
+    </div>
+
+    <!-- ALGORITHM -->
+    <div class="sec">
+      <div class="lbl">Algorithm</div>
+      <div class="agrid">
+        <div class="acard active" id="algo-nearest" onclick="selectAlgo('nearest')">
+          <div class="aicon">⚡</div>
+          <div class="aname">Nearest Neighbor</div>
+          <div class="asub">Greedy heuristic</div>
+          <span class="abadge bf">Fast</span>
+        </div>
+        <div class="acard" id="algo-dp" onclick="selectAlgo('dp')">
+          <div class="aicon">🎯</div>
+          <div class="aname">Held-Karp DP</div>
+          <div class="asub">Exact solution</div>
+          <span class="abadge be">Exact</span>
+        </div>
+        <div class="acard" id="algo-genetic" onclick="selectAlgo('genetic')">
+          <div class="aicon">🧬</div>
+          <div class="aname">Genetic Algo</div>
+          <div class="asub">Evolutionary</div>
+          <span class="abadge ba">Approx</span>
+        </div>
+        <div class="acard" id="algo-bruteforce" onclick="selectAlgo('bruteforce')">
+          <div class="aicon">💪</div>
+          <div class="aname">Brute Force</div>
+          <div class="asub">All permutations</div>
+          <span class="abadge bo">Optimal</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- SOLVE -->
+    <div class="sec">
+      <button class="bsolve" id="solveBtn" onclick="solve()">⚡ Optimize Route</button>
+    </div>
+
+    <!-- RESULTS -->
+    <div id="resultsArea"></div>
+
+  </aside>
+
+  <!-- MAP -->
+  <div class="map-wrap">
+    <div class="map-bar">
+      <span class="mbar-title">🌍 World Map</span>
+      <span class="mbar-info" id="mapInfo">Add cities to begin</span>
+      <span class="mbar-badge" id="mapBadge" style="display:none;">✓ Route Drawn</span>
+    </div>
+    <div id="map"></div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── REAL CITY COORDINATES (lat, lng) ──────────
+const PRESETS = {
+  india:[
+    {name:'Mumbai',lat:19.076,lng:72.877},
+    {name:'Delhi',lat:28.613,lng:77.209},
+    {name:'Bangalore',lat:12.971,lng:77.594},
+    {name:'Chennai',lat:13.082,lng:80.270},
+    {name:'Kolkata',lat:22.572,lng:88.363},
+    {name:'Hyderabad',lat:17.385,lng:78.486},
+    {name:'Jaipur',lat:26.912,lng:75.787},
+    {name:'Ahmedabad',lat:23.022,lng:72.571},
+  ],
+  europe:[
+    {name:'London',lat:51.505,lng:-0.090},
+    {name:'Paris',lat:48.856,lng:2.352},
+    {name:'Berlin',lat:52.520,lng:13.405},
+    {name:'Rome',lat:41.902,lng:12.496},
+    {name:'Madrid',lat:40.416,lng:-3.703},
+    {name:'Vienna',lat:48.208,lng:16.373},
+    {name:'Amsterdam',lat:52.370,lng:4.895},
+    {name:'Prague',lat:50.075,lng:14.437},
+  ],
+  usa:[
+    {name:'New York',lat:40.712,lng:-74.005},
+    {name:'Los Angeles',lat:34.052,lng:-118.243},
+    {name:'Chicago',lat:41.878,lng:-87.629},
+    {name:'Houston',lat:29.760,lng:-95.369},
+    {name:'Miami',lat:25.761,lng:-80.191},
+    {name:'Seattle',lat:47.606,lng:-122.332},
+    {name:'Denver',lat:39.739,lng:-104.984},
+    {name:'Atlanta',lat:33.748,lng:-84.387},
+  ]
+};
+
+const COLORS=['#ff6b6b','#ffd93d','#6bcb77','#4d96ff','#c77dff','#ff9a3c','#00c9ff','#f9a8d4'];
+let cities=[], selectedAlgo='nearest', markers=[], routeLine=null, map=null;
+
+// ── INIT MAP ─────────────────────────────────
+map = L.map('map',{zoomControl:true}).setView([20,0],2);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+  attribution:'© OpenStreetMap contributors',
+  maxZoom:18
+}).addTo(map);
+
+// ── GEOCODING ─────────────────────────────────
+async function geocode(cityName){
+  const res = await fetch(`http://localhost:3000/geocode?city=${encodeURIComponent(cityName)}`);
+  const data = await res.json();
+  return data;
+}
+
+// ── ADD CITY ──────────────────────────────────
+async function addCity(){
+  const inp=document.getElementById('cityInput');
+  const name=inp.value.trim();
+  if(!name){showToast('Please enter a city name!');return;}
+  if(cities.find(c=>c.name.toLowerCase()===name.toLowerCase())){showToast('City already added!');return;}
+
+  const btn=document.querySelector('.badd');
+  btn.innerHTML='⏳';btn.disabled=true;
+
+  const coords=await geocode(name);
+  btn.innerHTML='+';btn.disabled=false;
+
+  if(!coords){showToast('City not found! Try a different name.');return;}
+  cities.push({name,lat:coords.lat,lng:coords.lng});
+  inp.value='';
+  renderCities();updateMarkers();
+}
+
+function removeCity(i){
+  cities.splice(i,1);
+  renderCities();updateMarkers();clearRoute();
+  document.getElementById('resultsArea').innerHTML='';
+  document.getElementById('mapBadge').style.display='none';
+  document.getElementById('mapInfo').textContent=cities.length>0?`${cities.length} cities added`:'Add cities to begin';
+}
+
+function loadPreset(k){
+  cities=PRESETS[k].map(c=>({...c}));
+  renderCities();updateMarkers();clearRoute();
+  document.getElementById('resultsArea').innerHTML='';
+  document.getElementById('mapBadge').style.display='none';
+  document.getElementById('mapInfo').textContent=`${cities.length} cities added`;
+  // fit map to cities
+  const bounds=L.latLngBounds(cities.map(c=>[c.lat,c.lng]));
+  map.fitBounds(bounds,{padding:[40,40]});
+}
+
+function renderCities(){
+  document.getElementById('cityList').innerHTML=cities.map((c,i)=>`
+    <div class="citem">
+      <div class="cdot" style="background:${COLORS[i%COLORS.length]};box-shadow:0 0 7px ${COLORS[i%COLORS.length]};"></div>
+      <span class="cname">${c.name}</span>
+      ${i===0?'<span class="stag">START</span>':''}
+      <button class="crem" onclick="removeCity(${i})">✕</button>
+    </div>`).join('');
+}
+
+// ── MAP MARKERS ───────────────────────────────
+function updateMarkers(){
+  markers.forEach(m=>map.removeLayer(m));
+  markers=[];
+  cities.forEach((c,i)=>{
+    const col=COLORS[i%COLORS.length];
+    const icon=L.divIcon({
+      className:'',
+      html:`<div style="
+        width:32px;height:32px;border-radius:50%;
+        background:${col};border:3px solid #fff;
+        display:flex;align-items:center;justify-content:center;
+        font-size:12px;font-weight:700;color:#000;
+        box-shadow:0 0 14px ${col},0 2px 8px rgba(0,0,0,0.5);
+        font-family:Outfit,sans-serif;
+      ">${i+1}</div>
+      <div style="
+        position:absolute;top:34px;left:50%;transform:translateX(-50%);
+        background:rgba(5,7,15,0.9);color:${col};
+        padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;
+        white-space:nowrap;border:1px solid ${col}55;
+        font-family:Outfit,sans-serif;
+      ">${c.name}</div>`,
+      iconSize:[32,32],iconAnchor:[16,16],
+    });
+    const marker=L.marker([c.lat,c.lng],{icon}).addTo(map);
+    marker.bindPopup(`<b style="font-family:Outfit">${c.name}</b><br><small>${c.lat.toFixed(3)}, ${c.lng.toFixed(3)}</small>`);
+    markers.push(marker);
+  });
+}
+
+function clearRoute(){
+  if(routeLine){map.removeLayer(routeLine);routeLine=null;}
+}
+
+// ── SELECT ALGO ───────────────────────────────
+function selectAlgo(a){
+  selectedAlgo=a;
+  document.querySelectorAll('.acard').forEach(el=>el.classList.remove('active'));
+  document.getElementById('algo-'+a).classList.add('active');
+}
+
+// ── DISTANCE (Haversine in km) ────────────────
+function haversine(a,b){
+  const R=6371,dLat=(b.lat-a.lat)*Math.PI/180,dLng=(b.lng-a.lng)*Math.PI/180;
+  const x=Math.sin(dLat/2)**2+Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
+}
+function totalD(r){let s=0;for(let i=0;i<r.length;i++)s+=haversine(cities[r[i]],cities[r[(i+1)%r.length]]);return s;}
+
+// ── ALGORITHMS ────────────────────────────────
+function nearestNeighbor(){
+  const n=cities.length,vis=new Array(n).fill(false),r=[0];vis[0]=true;
+  for(let i=1;i<n;i++){let last=r[r.length-1],best=-1,bd=Infinity;for(let j=0;j<n;j++)if(!vis[j]&&haversine(cities[last],cities[j])<bd){bd=haversine(cities[last],cities[j]);best=j;}vis[best]=true;r.push(best);}
+  return r;
+}
+function heldKarp(){
+  const n=cities.length;if(n>15)return nearestNeighbor();
+  const INF=1e18,dp=Array.from({length:1<<n},()=>new Array(n).fill(INF)),par=Array.from({length:1<<n},()=>new Array(n).fill(-1));
+  dp[1][0]=0;
+  for(let mask=1;mask<(1<<n);mask++)for(let u=0;u<n;u++){if(!(mask&(1<<u))||dp[mask][u]===INF)continue;for(let v=0;v<n;v++){if(mask&(1<<v))continue;const nm=mask|(1<<v),nc=dp[mask][u]+haversine(cities[u],cities[v]);if(nc<dp[nm][v]){dp[nm][v]=nc;par[nm][v]=u;}}}
+  const full=(1<<n)-1;let last=0;for(let i=1;i<n;i++)if(dp[full][i]+haversine(cities[i],cities[0])<dp[full][last]+haversine(cities[last],cities[0]))last=i;
+  const route=[];let mask=full,cur=last;while(cur!==-1){route.unshift(cur);const pv=par[mask][cur];mask^=(1<<cur);cur=pv;}return route;
+}
+function genetic(){
+  const n=cities.length,POP=80,GEN=300;
+  function rand(){const r=Array.from({length:n},(_,i)=>i);for(let i=n-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[r[i],r[j]]=[r[j],r[i]];}const ix=r.indexOf(0);[r[0],r[ix]]=[r[ix],r[0]];return r;}
+  function cross(a,b){const s=1+Math.floor(Math.random()*(n-2)),e=s+Math.floor(Math.random()*(n-s-1))+1,c=new Array(n).fill(-1);for(let i=s;i<e;i++)c[i]=a[i];let bi=0;for(let i=0;i<n;i++){if(c[i]===-1){while(c.includes(b[bi]))bi++;c[i]=b[bi++];}}c[0]=0;return c;}
+  function mut(r){const c=[...r];if(Math.random()<0.03){const i=1+Math.floor(Math.random()*(n-1)),j=1+Math.floor(Math.random()*(n-1));[c[i],c[j]]=[c[j],c[i]];}return c;}
+  let pop=Array.from({length:POP},rand);
+  for(let g=0;g<GEN;g++){pop.sort((a,b)=>totalD(a)-totalD(b));const next=pop.slice(0,10);while(next.length<POP){const a=pop[Math.floor(Math.random()*20)],b=pop[Math.floor(Math.random()*20)];next.push(mut(cross(a,b)));}pop=next;}
+  pop.sort((a,b)=>totalD(a)-totalD(b));return pop[0];
+}
+function bruteForce(){
+  const n=cities.length;if(n>9){showToast('Brute Force: max 9 cities. Using Nearest Neighbor.');return nearestNeighbor();}
+  const idx=Array.from({length:n-1},(_,i)=>i+1);let best=null,bd=Infinity;
+  function perm(arr,l){if(l===arr.length){const r=[0,...arr],dd=totalD(r);if(dd<bd){bd=dd;best=[...r];}return;}for(let i=l;i<arr.length;i++){[arr[l],arr[i]]=[arr[i],arr[l]];perm(arr,l+1);[arr[l],arr[i]]=[arr[i],arr[l]];}}
+  perm(idx,0);return best;
+}
+
+// ── SOLVE ─────────────────────────────────────
+function solve(){
+  if(cities.length<3){showToast('Add at least 3 cities!');return;}
+  const btn=document.getElementById('solveBtn');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span>Optimizing...';
+  setTimeout(()=>{
+    const t0=performance.now();
+    let route;
+    if(selectedAlgo==='nearest')route=nearestNeighbor();
+    else if(selectedAlgo==='dp')route=heldKarp();
+    else if(selectedAlgo==='genetic')route=genetic();
+    else route=bruteForce();
+    const time=(performance.now()-t0).toFixed(1);
+    const dist=totalD(route);
+    drawRoute(route);
+    renderResults(route,dist,time);
+    document.getElementById('mapBadge').style.display='block';
+    document.getElementById('mapInfo').textContent=`${cities.length} cities · ${dist.toFixed(0)} km`;
+    btn.disabled=false;btn.innerHTML='⚡ Optimize Route';
+  },60);
+}
+
+// ── DRAW ROUTE ON MAP ─────────────────────────
+function drawRoute(route){
+  clearRoute();
+  const latlngs=route.map(i=>[cities[i].lat,cities[i].lng]);
+  latlngs.push([cities[route[0]].lat,cities[route[0]].lng]); // close loop
+
+  // glow effect — draw two lines
+  L.polyline(latlngs,{color:'rgba(0,212,170,0.2)',weight:14,lineCap:'round',lineJoin:'round'}).addTo(map);
+  routeLine=L.polyline(latlngs,{color:'#00d4aa',weight:3.5,lineCap:'round',lineJoin:'round',dashArray:null}).addTo(map);
+
+  // update marker numbers to show route order
+  markers.forEach(m=>map.removeLayer(m));
+  markers=[];
+  cities.forEach((c,i)=>{
+    const routeOrder=route.indexOf(i);
+    const col=COLORS[i%COLORS.length];
+    const icon=L.divIcon({
+      className:'',
+      html:`<div style="
+        width:32px;height:32px;border-radius:50%;
+        background:${col};border:3px solid #fff;
+        display:flex;align-items:center;justify-content:center;
+        font-size:11px;font-weight:700;color:#000;
+        box-shadow:0 0 18px ${col},0 2px 8px rgba(0,0,0,0.5);
+        font-family:Outfit,sans-serif;
+      ">${routeOrder!==-1?routeOrder+1:i+1}</div>
+      <div style="
+        position:absolute;top:34px;left:50%;transform:translateX(-50%);
+        background:rgba(5,7,15,0.92);color:${col};
+        padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;
+        white-space:nowrap;border:1px solid ${col}66;
+        font-family:Outfit,sans-serif;
+      ">${c.name}</div>`,
+      iconSize:[32,32],iconAnchor:[16,16],
+    });
+    const marker=L.marker([c.lat,c.lng],{icon}).addTo(map);
+    marker.bindPopup(`<b>${c.name}</b><br>Stop #${routeOrder+1}`);
+    markers.push(marker);
+  });
+
+  // fit map
+  const bounds=L.latLngBounds(latlngs);
+  map.fitBounds(bounds,{padding:[60,60]});
+}
+
+// ── RENDER RESULTS ────────────────────────────
+function renderResults(route,dist,time){
+  const greedyD=totalD(nearestNeighbor()),geneD=totalD(genetic()),maxD=Math.max(greedyD,geneD,dist);
+  const algoName={nearest:'Greedy',dp:'Held-Karp',genetic:'Genetic',bruteforce:'Brute Force'}[selectedAlgo];
+  document.getElementById('resultsArea').innerHTML=`
+    <div class="sec">
+      <div class="lbl">Results</div>
+      <div class="sgrid">
+        <div class="scard"><div class="slbl">Distance</div><div class="sval" style="color:var(--c1)">${dist.toFixed(0)}<span style="font-size:0.75rem;color:var(--muted);font-family:Outfit"> km</span></div></div>
+        <div class="scard"><div class="slbl">Time</div><div class="sval" style="color:var(--c3)">${time}<span style="font-size:0.75rem;color:var(--muted);font-family:Outfit"> ms</span></div></div>
+        <div class="scard"><div class="slbl">Cities</div><div class="sval" style="color:var(--c4)">${cities.length}<span style="font-size:0.75rem;color:var(--muted);font-family:Outfit"> stops</span></div></div>
+        <div class="scard"><div class="slbl">Algorithm</div><div class="sval" style="color:var(--c2);font-size:0.9rem;">${algoName}</div></div>
+      </div>
+    </div>
+    <div class="sec">
+      <div class="lbl">Optimal Route</div>
+      <div class="rpath">
+        ${route.map((ci,i)=>`
+          <div class="rstep" style="animation-delay:${i*0.05}s">
+            <div class="rnode">
+              <div class="rcirc" style="border-color:${COLORS[ci%COLORS.length]};color:${COLORS[ci%COLORS.length]};background:${COLORS[ci%COLORS.length]}18;">${i+1}</div>
+              ${i<route.length-1?`<div class="rline" style="background:linear-gradient(to bottom,${COLORS[ci%COLORS.length]},${COLORS[route[(i+1)%route.length]%COLORS.length]}44);"></div>`:''}
+            </div>
+            <div class="rinfo">
+              <div class="rcity">${cities[ci].name}${i===0?' 🏠':''}</div>
+              ${i<route.length-1?`<div class="rkm">${haversine(cities[ci],cities[route[(i+1)%route.length]]).toFixed(0)} km →</div>`:''}
+            </div>
+          </div>`).join('')}
+        <div class="rstep"><div class="rnode"><div class="rcirc" style="border-color:var(--c2);color:var(--c2);background:rgba(255,217,61,0.1);">↩</div></div><div class="rinfo"><div class="rcity" style="color:var(--muted)">${cities[route[0]].name} (return)</div></div></div>
+      </div>
+    </div>
+    <div class="sec">
+      <div class="lbl">Algorithm Comparison</div>
+      ${[{name:'Nearest Neighbor',dist:greedyD,color:'#ff6b6b'},{name:'Genetic Algorithm',dist:geneD,color:'#c77dff'},{name:'Your Choice',dist:dist,color:'#ffd93d'}].map(item=>`
+        <div class="cmpitem">
+          <div class="cmptop"><span style="font-weight:600">${item.name}</span><span style="color:var(--muted)">${item.dist.toFixed(0)} km</span></div>
+          <div class="cmptrack"><div class="cmpfill" style="width:${(item.dist/maxD*100).toFixed(1)}%;background:${item.color};box-shadow:0 0 8px ${item.color}66;"></div></div>
+        </div>`).join('')}
+    </div>`;
+}
+
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2800);}
+document.getElementById('cityInput').addEventListener('keydown',e=>{if(e.key==='Enter')addCity();});
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('service-worker.js')
+    .then(() => console.log('SW registered'));
+}
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js')
+      .then(() => console.log('SW registered'))
+      .catch(err => console.log('SW error', err));
+  });
+}
+</script>
+</body>
+</html>
