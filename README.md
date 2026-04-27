@@ -34,14 +34,6 @@ An interactive web application that calculates the most efficient travel route b
 
 👉 https://travel-route-optimizer-33na.onrender.com
 
----
-
-## 📷 Screenshots
-
-*(Add screenshots here for better presentation)*
-
----
-
 ## ⚙️ Installation (Local Setup)
 
 ### 1. Clone the repository
