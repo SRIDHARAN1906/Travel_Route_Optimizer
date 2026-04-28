@@ -23,7 +23,7 @@ An interactive web application that calculates the most efficient travel route b
 ## 🧠 Technologies Used
 
 * Frontend: HTML, CSS, JavaScript
-* Backend: Node.js, Express
+* Backend: Python
 * Maps: Leaflet.js + OpenStreetMap
 * API: Nominatim (Geocoding)
 * Deployment: Render
